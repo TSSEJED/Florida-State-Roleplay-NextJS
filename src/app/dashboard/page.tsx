@@ -1,13 +1,11 @@
 'use client';
 
-import { signOut, useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
-
 
 interface Application {
   id: string;
@@ -17,44 +15,45 @@ interface Application {
   data: Record<string, unknown>;
 }
 
-export default function Dashboard() {
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push('/auth/signin');
-    },
-  });
-  
+export default function DashboardPage() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSignOut = async () => {
-    await signOut({ redirect: true, callbackUrl: '/' });
-  };
-
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+      return;
+    }
 
-    // Fetch applications if user has Dashboard role
-    const fetchApplications = async () => {
-      try {
-        if (session?.user?.roles?.includes('Dashboard')) {
-          const appsRes = await fetch('/api/applications');
-          const appsData = await appsRes.json();
-          setApplications(appsData);
+    if (status === 'authenticated') {
+      const fetchApplications = async () => {
+        try {
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          // For now, use mock data
+          setApplications([
+            {
+              id: '1',
+              type: 'Moderator',
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+              data: {}
+            }
+          ]);
+        } catch (error) {
+          console.error('Error fetching applications:', error);
+          setError('Failed to load applications');
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error('Error fetching applications:', error);
-        setError('Failed to load applications');
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchApplications();
-  }, [session, status]);
+      fetchApplications();
+    }
+  }, [status, router]);
 
   if (status === 'loading' || loading) {
     return (
@@ -67,94 +66,97 @@ export default function Dashboard() {
     );
   }
 
-  if (!session?.user?.roles?.includes('Dashboard')) {
+  if (!session?.user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-4">
         <div className="w-full max-w-md space-y-4 rounded-lg bg-gray-800 p-8 text-center">
           <h2 className="text-2xl font-bold text-white">Access Denied</h2>
           <p className="text-gray-400">
-            You don't have permission to access this page.
+            You need to be signed in to view this page.
           </p>
-          <Button
-            onClick={handleSignOut}
-            className="mt-4 w-full bg-red-600 hover:bg-red-700 text-white"
+          <button
+            onClick={() => router.push('/auth/signin')}
+            className="mt-4 w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
-            Sign Out
-          </Button>
+            Sign In
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="border-b border-gray-800 bg-gray-800/50">
-        <div className="container mx-auto flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold">FSRP Admin Dashboard</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-400">
-              {session.user.email}
-            </span>
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              className="border-gray-700 text-white hover:bg-gray-700"
-            >
-              Sign Out
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gray-900 p-4">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+          <button
+            onClick={() => router.push('/api/auth/signout')}
+            className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+          >
+            Sign Out
+          </button>
         </div>
-      </header>
+        
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-700 bg-red-900/30 p-4 text-red-200">
+            {error}
+          </div>
+        )}
 
-      <main className="container mx-auto p-4">
-        <div className="mb-8">
-          <h2 className="mb-4 text-xl font-semibold">Recent Applications</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {applications.length > 0 ? (
-              applications.map((app) => (
-                <div
-                  key={app.id}
-                  className="rounded-lg border border-gray-700 bg-gray-800/50 p-6"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">
-                      {app.type} Application
-                    </h3>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        app.status === 'pending'
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : 'bg-green-500/20 text-green-400'
-                      }`}
-                    >
-                      {app.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-400">
-                    Submitted on{" "}
-                    {new Date(app.createdAt).toLocaleDateString()}
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-4 text-blue-400 hover:bg-blue-500/10"
-                    onClick={() => {
-                      // View application details
-                      console.log('View application:', app.id);
-                    }}
-                  >
-                    View Details
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <p className="col-span-3 text-center text-gray-400">
-                No applications found.
-              </p>
-            )}
+        <div className="grid gap-6">
+          <div className="rounded-lg bg-gray-800 p-6">
+            <h2 className="mb-4 text-xl font-semibold text-white">
+              Welcome, {session.user.name}!
+            </h2>
+            <p className="text-gray-400">
+              You have {applications.length} application(s).
+            </p>
           </div>
+
+          {applications.length > 0 && (
+            <div className="rounded-lg bg-gray-800 p-6">
+              <h2 className="mb-4 text-xl font-semibold text-white">Recent Applications</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {applications.map((app) => (
+                  <div
+                    key={app.id}
+                    className="rounded-lg border border-gray-700 bg-gray-700/30 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-white">
+                        {app.type} Application
+                      </h3>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          app.status === 'pending'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-green-500/20 text-green-400'
+                        }`}
+                      >
+                        {app.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-400">
+                      Submitted on{' '}
+                      {new Date(app.createdAt).toLocaleDateString()}
+                    </p>
+                    <button
+                      onClick={() => {
+                        // View application details
+                        console.log('View application:', app.id);
+                      }}
+                      className="mt-3 text-sm text-blue-400 hover:underline"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
