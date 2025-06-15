@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
 import { signOut, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -14,50 +15,56 @@ interface Application {
 }
 
 export default function Dashboard() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push('/auth/signin');
+    },
+  });
+  
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOut({ redirect: true, callbackUrl: '/' });
   };
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (status !== 'authenticated') return;
 
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
-      return;
-    }
-
-    // Fetch applications if user is admin
+    // Fetch applications if user has Dashboard role
     const fetchApplications = async () => {
       try {
-        if (session?.user?.role === 'admin') {
+        if (session?.user?.roles?.includes('Dashboard')) {
           const appsRes = await fetch('/api/applications');
           const appsData = await appsRes.json();
           setApplications(appsData);
         }
       } catch (error) {
         console.error('Error fetching applications:', error);
+        setError('Failed to load applications');
       } finally {
         setLoading(false);
       }
     };
 
     fetchApplications();
-  }, [session, status, router]);
+  }, [session, status]);
 
   if (status === 'loading' || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
-        <div className="text-white">Loading...</div>
+        <div className="flex items-center gap-2 text-white">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          Loading...
+        </div>
       </div>
     );
   }
 
-  if (!session?.user?.role) {
+  if (!session?.user?.roles?.includes('Dashboard')) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-4">
         <div className="w-full max-w-md space-y-4 rounded-lg bg-gray-800 p-8 text-center">
