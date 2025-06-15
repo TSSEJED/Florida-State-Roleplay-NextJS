@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable static exports for the output: 'export' option
-  output: 'export',
+  // Remove static export to enable server-side features
+  // output: 'export',
   // Add a trailing slash to all paths
   trailingSlash: true,
   // Configure images
   images: {
-    unoptimized: true,
+    unoptimized: false, // Enable Next.js Image Optimization
   },
   // Handle static files
   webpack: (config) => {
